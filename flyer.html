@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Beamers — You Have Three Wishes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@900&family=Caveat:wght@500;700&family=VT323&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1208;
+    --parchment: #f3e6c4;
+    --parchment-dark: #e8d3a0;
+    --gold: #b8860b;
+    --gold-light: #d4a634;
+    --crimson: #8b1a1a;
+    --forest: #2d4a2b;
+    --shadow: rgba(60, 30, 0, 0.18);
+  }
+
+  @page { size: A5; margin: 0; }
+
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Crimson Pro", "Iowan Old Style", Georgia, serif;
+    color: var(--ink);
+    line-height: 1.45;
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at top left, #fff2d0 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, #f0d9a0 0%, transparent 60%),
+      linear-gradient(135deg, var(--parchment) 0%, var(--parchment-dark) 100%);
+    background-attachment: fixed;
+  }
+
+  .scroll {
+    max-width: 148mm;
+    margin: 0 auto;
+    padding: 15mm 14mm;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  .scroll::before, .scroll::after {
+    content: "✦";
+    position: absolute;
+    color: var(--gold);
+    font-size: 16pt;
+    opacity: 0.55;
+  }
+  .scroll::before { top: 6mm; left: 8mm; }
+  .scroll::after  { bottom: 6mm; right: 8mm; }
+
+  /* ─── Beat 1: The spell ───────────────────────────── */
+
+  .spell {
+    text-align: center;
+    margin: 2mm 0 9mm;
+  }
+
+  .wish-stamp {
+    font-family: "VT323", monospace;
+    font-size: 10pt;
+    letter-spacing: 0.35em;
+    color: var(--crimson);
+    text-transform: uppercase;
+    margin-bottom: 5mm;
+  }
+
+  h1 {
+    font-family: "Cinzel Decorative", serif;
+    font-weight: 900;
+    font-size: 34pt;
+    line-height: 1;
+    margin: 0;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    text-shadow: 2.5px 2.5px 0 var(--gold-light);
+  }
+
+  .incantation {
+    font-family: "Caveat", cursive;
+    font-size: 22pt;
+    color: var(--crimson);
+    margin: 4mm 0 0;
+    line-height: 1.15;
+    transform: rotate(-1deg);
+    display: inline-block;
+  }
+  .incantation .sparkle { color: var(--gold-light); }
+
+  .whisper {
+    font-style: italic;
+    font-size: 11pt;
+    color: #4a2f15;
+    margin-top: 4mm;
+  }
+  .whisper .ai { font-style: normal; color: var(--forest); font-weight: 600; }
+
+  /* ─── Beat 2: Three named quests ──────────────────── */
+
+  .quests {
+    display: flex;
+    flex-direction: column;
+    gap: 4mm;
+    margin: 6mm 0 8mm;
+  }
+
+  .quest {
+    border: 1.5px solid var(--gold);
+    border-radius: 2mm;
+    padding: 3.5mm 5mm 3mm;
+    background: rgba(255, 248, 220, 0.55);
+    position: relative;
+    box-shadow: 2px 2px 0 var(--shadow);
+  }
+  .quest:nth-child(1) { transform: rotate(-0.7deg); }
+  .quest:nth-child(2) { transform: rotate(0.5deg); }
+  .quest:nth-child(3) { transform: rotate(-0.3deg); }
+
+  .quest-stamp {
+    position: absolute;
+    top: -3mm;
+    right: 5mm;
+    background: var(--crimson);
+    color: var(--parchment);
+    font-family: "VT323", monospace;
+    font-size: 9pt;
+    padding: 0.8mm 2.5mm;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transform: rotate(2deg);
+  }
+
+  .quest-title {
+    font-family: "Cinzel Decorative", serif;
+    font-size: 13pt;
+    font-weight: 900;
+    margin: 0 0 1mm;
+    color: var(--forest);
+  }
+  .quest-title .glyph { font-size: 15pt; margin-right: 4px; }
+
+  .quest-example {
+    font-family: "Caveat", cursive;
+    font-size: 14pt;
+    color: #3a2008;
+    margin: 0;
+    line-height: 1.2;
+  }
+  .quest-example::before { content: "❝ "; color: var(--gold); }
+  .quest-example::after  { content: " ❞"; color: var(--gold); }
+
+  /* ─── Beat 3: The turn ────────────────────────────── */
+
+  .turn {
+    text-align: center;
+    font-size: 13pt;
+    line-height: 1.5;
+    margin: 8mm 0;
+    color: var(--ink);
+    font-style: italic;
+  }
+  .turn strong { font-style: normal; color: var(--crimson); font-weight: 600; }
+  .turn .dash { color: var(--gold); font-style: normal; }
+
+  /* ─── Beat 4: Footer + address ────────────────────── */
+
+  .closing {
+    margin-top: 6mm;
+    padding-top: 5mm;
+    border-top: 1px solid var(--gold);
+    text-align: center;
+  }
+
+  .lore {
+    font-family: "Caveat", cursive;
+    font-size: 13pt;
+    color: #4a2f15;
+    line-height: 1.3;
+    margin: 0 0 5mm;
+  }
+  .lore .cafe { color: var(--crimson); font-weight: 700; }
+  .lore .pay  { font-family: "Crimson Pro", serif; font-style: italic; font-size: 11pt; display: block; margin-top: 2mm; color: var(--ink); }
+
+  .address {
+    font-family: "VT323", monospace;
+    font-size: 18pt;
+    color: var(--ink);
+    letter-spacing: 0.06em;
+  }
+  .address a { color: inherit; text-decoration: none; border-bottom: 1.5px dotted var(--crimson); }
+  .address .at { color: var(--crimson); }
+
+  .canon {
+    font-family: "VT323", monospace;
+    font-size: 8pt;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    margin-top: 4mm;
+    text-transform: uppercase;
+  }
+
+  .leet-stamp {
+    position: absolute;
+    bottom: 10mm;
+    left: 8mm;
+    font-family: "VT323", monospace;
+    font-size: 8pt;
+    color: var(--gold);
+    transform: rotate(-90deg);
+    transform-origin: left bottom;
+    letter-spacing: 0.3em;
+    opacity: 0.6;
+  }
+
+  @media print {
+    body { background: var(--parchment) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .scroll { padding: 12mm; }
+  }
+
+  @media (max-width: 600px) {
+    .scroll { padding: 10mm 7mm; }
+    h1 { font-size: 26pt; }
+    .incantation { font-size: 19pt; }
+    .address { font-size: 15pt; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scroll">
+
+  <!-- Beat 1: the spell -->
+  <div class="spell">
+    <div class="wish-stamp">⚜ wish &#8470; 15 of the network ⚜</div>
+    <h1>BEAMERS</h1>
+    <div class="incantation">
+      <span class="sparkle">✦</span> you have three wishes. <span class="sparkle">✦</span>
+    </div>
+    <div class="whisper">
+      A Beamer will grant them — with <span class="ai">AI</span>, for free, three times over.
+    </div>
+  </div>
+
+  <!-- Beat 2: three named quests -->
+  <div class="quests">
+
+    <div class="quest">
+      <div class="quest-stamp">★ Tutorial</div>
+      <div class="quest-title"><span class="glyph">🌱</span>The Dawn Heron</div>
+      <p class="quest-example">A daily summary of yesterday's bookings, sent to my phone at seven.</p>
+    </div>
+
+    <div class="quest">
+      <div class="quest-stamp">⚔ Side-Quest</div>
+      <div class="quest-title"><span class="glyph">📜</span>The Inbox Whisperer</div>
+      <p class="quest-example">Auto-reply to the question every customer asks me three times a day.</p>
+    </div>
+
+    <div class="quest">
+      <div class="quest-stamp">🔥 Boss Fight</div>
+      <div class="quest-title"><span class="glyph">🐉</span>The Booking Golem</div>
+      <p class="quest-example">A booking, reminder and follow-up system that runs itself, forever.</p>
+    </div>
+
+  </div>
+
+  <!-- Beat 3: the turn -->
+  <p class="turn">
+    After the third wish, you may <strong>keep your Beamer</strong>.<br>
+    The price is spoken then <span class="dash">—</span> never before.
+  </p>
+
+  <!-- Beat 4: footer + address -->
+  <div class="closing">
+    <p class="lore">
+      This flyer is itself a granted wish —<br>
+      to the family at <span class="cafe">Lavanter Café</span>,<br>
+      who gave us one in return.
+      <span class="pay">Wishes travel. Pay yours forward.</span>
+    </p>
+
+    <div class="address">
+      <a href="mailto:wish@beamers.network">wish<span class="at">@</span>beamers.network</a>
+    </div>
+
+    <div class="canon">— canon · the first wish-giver · est. 2026 —</div>
+  </div>
+
+  <div class="leet-stamp">B34M3R · b34m()</div>
+
+</div>
+
+</body>
+</html>

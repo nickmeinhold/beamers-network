@@ -89,6 +89,21 @@
   }
   .incantation .sparkle { color: var(--gold-light); }
 
+  .invocation {
+    font-family: "VT323", monospace;
+    font-size: 13pt;
+    color: var(--forest);
+    background: rgba(20, 30, 15, 0.06);
+    border: 1px solid rgba(45, 74, 43, 0.25);
+    border-radius: 1.5mm;
+    padding: 1.5mm 4mm;
+    margin: 4mm auto 0;
+    display: inline-block;
+    letter-spacing: 0.04em;
+  }
+  .invocation .prompt { color: var(--crimson); font-weight: 700; margin-right: 2mm; }
+  .invocation .flag { color: var(--gold); }
+
   .whisper {
     font-style: italic;
     font-size: 11pt;
@@ -238,6 +253,9 @@
     <div class="incantation">
       <span class="sparkle">✦</span> you have three wishes. <span class="sparkle">✦</span>
     </div>
+    <div class="invocation">
+      <span class="prompt">$</span> beam <span class="flag">--wishes</span> 3 <span class="flag">--price</span> 0
+    </div>
     <div class="whisper">
       A Beamer will grant them — with <span class="ai">AI</span>, for free, three times over.
     </div>
@@ -288,7 +306,7 @@
     <div class="canon">— canon · the first wish-giver · est. 2026 —</div>
   </div>
 
-  <div class="leet-stamp">B34M3R · b34m()</div>
+  <div class="leet-stamp">beam() · BEAMER</div>
 
 </div>
 

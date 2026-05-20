@@ -47,7 +47,7 @@ function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Forge-Key",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
@@ -55,6 +55,14 @@ function corsHeaders(origin) {
 
 function clientIp(request) {
   return request.headers.get("CF-Connecting-IP") || "0.0.0.0";
+}
+
+/** Constant-time-ish string compare to avoid trivial timing leaks on the passphrase. */
+function safeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 class SpendCapError extends Error {}
@@ -215,9 +223,18 @@ async function handleCast(request, env) {
   const origin = request.headers.get("Origin") || "";
   const cors = corsHeaders(origin);
 
-  if (!env.ANTHROPIC_API_KEY) {
-    return new Response(JSON.stringify({ error: "not_configured", message: "The forge backend has no Anthropic API key set yet. Ask the network keeper to add one." }), {
+  if (!env.ANTHROPIC_API_KEY || !env.FORGE_PASSPHRASE) {
+    return new Response(JSON.stringify({ error: "not_configured", message: "The forge backend isn't fully lit yet — the network keeper needs to set its key and passphrase." }), {
       status: 503,
+      headers: { "content-type": "application/json", ...cors },
+    });
+  }
+
+  // ---- auth gate: fail closed. Only invited holders of the passphrase may spend. ----
+  const provided = request.headers.get("X-Forge-Key") || "";
+  if (!safeEqual(provided, env.FORGE_PASSPHRASE)) {
+    return new Response(JSON.stringify({ error: "unauthorized", message: "That's not the right phrase. The forge stays shut to strangers." }), {
+      status: 401,
       headers: { "content-type": "application/json", ...cors },
     });
   }
@@ -289,7 +306,7 @@ export default {
     }
 
     if (url.pathname === "/health") {
-      return new Response(JSON.stringify({ ok: true, configured: !!env.ANTHROPIC_API_KEY, day: today() }), {
+      return new Response(JSON.stringify({ ok: true, configured: !!(env.ANTHROPIC_API_KEY && env.FORGE_PASSPHRASE), gated: true, day: today() }), {
         headers: { "content-type": "application/json", ...corsHeaders(origin) },
       });
     }

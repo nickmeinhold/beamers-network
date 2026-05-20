@@ -231,6 +231,12 @@
   </header>
 
   <section class="console">
+    <div id="gate" style="display:none; margin-bottom:1.4rem; padding-bottom:1.2rem; border-bottom:1px dashed var(--gold);">
+      <label class="field-label" for="passphrase">Passphrase</label>
+      <input type="password" id="passphrase" placeholder="the phrase the keeper gave you…" autocomplete="off">
+      <div class="hint">This forge is private. Ask Nick for the phrase, or it stays shut.</div>
+    </div>
+
     <label class="field-label" for="wish">Your wish</label>
     <textarea id="wish" rows="3" placeholder="a one-page poster for my Saturday pottery class, warm and handmade-feeling…"></textarea>
     <div class="hint">Describe an artifact you'd like as a single web page — a poster, a flyer, a landing page, a menu, a CV.</div>
@@ -281,6 +287,11 @@ EXAMPLES.forEach((ex) => {
 // Surface "not configured" state up front so people aren't surprised.
 fetch(WORKER + "/health").then(r => r.json()).then(h => {
   if (!h.configured) { $("notconfig").style.display = "block"; }
+  if (h.gated) {
+    $("gate").style.display = "block";
+    const saved = localStorage.getItem("forgeKey");
+    if (saved) $("passphrase").value = saved;
+  }
 }).catch(() => {});
 
 const iterationsEl = $("iterations");
@@ -356,6 +367,8 @@ async function cast() {
   if (wish.length < 3) { setStatus("whisper a real wish first.", true); return; }
   const criteriaRaw = $("criteria").value.trim();
   const criteria = criteriaRaw ? criteriaRaw.split(";").map(s => s.trim()).filter(Boolean) : null;
+  const passphrase = $("passphrase").value.trim();
+  if (passphrase) localStorage.setItem("forgeKey", passphrase);
 
   // reset
   iterationsEl.innerHTML = ""; iterEls = {};
@@ -365,9 +378,17 @@ async function cast() {
   try {
     const res = await fetch(WORKER + "/cast", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "X-Forge-Key": passphrase },
       body: JSON.stringify({ wish, criteria }),
     });
+
+    if (res.status === 401) {
+      localStorage.removeItem("forgeKey");
+      setStatus("that's not the right phrase — ask the keeper.", true);
+      $("cast").disabled = false;
+      $("passphrase").focus();
+      return;
+    }
 
     if (!res.ok && res.headers.get("content-type")?.includes("application/json")) {
       const err = await res.json();

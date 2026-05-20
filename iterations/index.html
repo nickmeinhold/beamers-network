@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Beamers Flyer — Forge Iterations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@900&family=VT323&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1208;
+    --parchment: #f3e6c4;
+    --parchment-dark: #e8d3a0;
+    --gold: #b8860b;
+    --gold-light: #d4a634;
+    --crimson: #8b1a1a;
+    --forest: #2d4a2b;
+    --pass: #2d6a2b;
+    --fail: #a01818;
+    --partial: #b8860b;
+  }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Crimson Pro", Georgia, serif;
+    color: var(--ink);
+    line-height: 1.5;
+    background:
+      radial-gradient(ellipse at top left, #fff2d0 0%, transparent 50%),
+      linear-gradient(135deg, var(--parchment) 0%, var(--parchment-dark) 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    padding: 4mm 0;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 6mm 8mm; }
+  header { text-align: center; margin-bottom: 8mm; }
+  h1 {
+    font-family: "Cinzel Decorative", serif;
+    font-weight: 900;
+    font-size: 28pt;
+    margin: 0;
+    color: var(--ink);
+    text-shadow: 2px 2px 0 var(--gold-light);
+  }
+  .subtitle {
+    font-family: "VT323", monospace;
+    font-size: 14pt;
+    color: var(--crimson);
+    letter-spacing: 0.15em;
+    margin-top: 3mm;
+  }
+  .sprint-id {
+    font-family: "VT323", monospace;
+    font-size: 11pt;
+    color: var(--gold);
+    margin-top: 1mm;
+  }
+  .iteration {
+    background: rgba(255, 250, 230, 0.6);
+    border: 1.5px solid var(--gold);
+    border-radius: 3mm;
+    padding: 5mm 7mm;
+    margin: 6mm 0;
+    box-shadow: 3px 3px 0 rgba(60, 30, 0, 0.12);
+  }
+  .iter-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px dashed var(--gold);
+    padding-bottom: 3mm;
+    margin-bottom: 4mm;
+    flex-wrap: wrap;
+    gap: 3mm;
+  }
+  .iter-title {
+    font-family: "Cinzel Decorative", serif;
+    font-size: 18pt;
+    font-weight: 900;
+    margin: 0;
+    color: var(--forest);
+  }
+  .iter-meta {
+    font-family: "VT323", monospace;
+    font-size: 12pt;
+    color: var(--ink);
+  }
+  .iter-meta .score {
+    color: var(--crimson);
+    font-size: 14pt;
+    font-weight: 700;
+  }
+  .iter-meta .rec {
+    background: var(--gold);
+    color: var(--parchment);
+    padding: 0.5mm 2mm;
+    margin-left: 3mm;
+    border-radius: 1mm;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10pt;
+  }
+  .iter-meta .rec.ship { background: var(--pass); }
+  .iter-meta .rec.iterate { background: var(--gold); }
+  .iter-meta .rec.pivot { background: var(--fail); }
+
+  .iter-links {
+    margin: 3mm 0 4mm;
+    font-family: "VT323", monospace;
+    font-size: 13pt;
+  }
+  .iter-links a {
+    color: var(--crimson);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--crimson);
+    margin-right: 5mm;
+  }
+  .iter-links a:hover { background: rgba(139, 26, 26, 0.08); }
+
+  .criteria {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5mm 5mm;
+    margin: 3mm 0;
+    font-size: 10pt;
+  }
+  .crit { display: flex; align-items: center; gap: 2mm; }
+  .crit-dot {
+    display: inline-block;
+    width: 3mm; height: 3mm;
+    border-radius: 50%;
+  }
+  .crit-dot.pass { background: var(--pass); }
+  .crit-dot.fail { background: var(--fail); }
+  .crit-dot.partial {
+    background: var(--gold);
+    box-shadow: inset -1.5mm 0 0 var(--fail);
+  }
+  .crit-name {
+    font-family: "VT323", monospace;
+    font-size: 11pt;
+    color: var(--ink);
+  }
+  .crit-score { color: var(--gold); margin-left: auto; font-family: "VT323", monospace; }
+
+  .notes {
+    background: rgba(184, 134, 11, 0.08);
+    border-left: 3px solid var(--gold);
+    padding: 3mm 4mm;
+    margin-top: 4mm;
+    font-style: italic;
+    font-size: 10.5pt;
+    color: #3a2a18;
+  }
+  .notes strong { font-style: normal; color: var(--crimson); }
+
+  .pending {
+    opacity: 0.5;
+    border-style: dashed;
+  }
+  .pending .iter-meta .rec { background: rgba(0,0,0,0.2); }
+
+  footer {
+    text-align: center;
+    margin: 10mm 0 4mm;
+    font-family: "VT323", monospace;
+    font-size: 11pt;
+    color: var(--gold);
+    letter-spacing: 0.2em;
+  }
+
+  @media (max-width: 600px) {
+    .container { padding: 5mm; }
+    h1 { font-size: 22pt; }
+    .criteria { grid-template-columns: 1fr; }
+    .iter-head { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>BEAMERS FLYER</h1>
+    <div class="subtitle">⚜ forge iterations ⚜</div>
+    <div class="sprint-id">sprint spr_2fa046 · magic+tech aesthetic v1</div>
+  </header>
+
+  <!-- v1 -->
+  <article class="iteration">
+    <div class="iter-head">
+      <h2 class="iter-title">v1 · initial</h2>
+      <div class="iter-meta">
+        score <span class="score">0.73</span>
+        <span class="rec iterate">iterate</span>
+      </div>
+    </div>
+
+    <div class="iter-links">
+      <a href="v1/" target="_blank">view flyer →</a>
+      <a href="v1/index.html" target="_blank">raw html</a>
+    </div>
+
+    <div class="criteria">
+      <div class="crit"><span class="crit-dot pass"></span><span class="crit-name">a5_fit</span><span class="crit-score">0.85</span></div>
+      <div class="crit"><span class="crit-dot fail"></span><span class="crit-name">read_aloud_25s</span><span class="crit-score">0.35</span></div>
+      <div class="crit"><span class="crit-dot pass"></span><span class="crit-name">mobile_responsive</span><span class="crit-score">0.90</span></div>
+      <div class="crit"><span class="crit-dot fail"></span><span class="crit-name">wcag_contrast</span><span class="crit-score">0.65</span></div>
+      <div class="crit"><span class="crit-dot partial"></span><span class="crit-name">dual_register_fused</span><span class="crit-score">0.55</span></div>
+      <div class="crit"><span class="crit-dot pass"></span><span class="crit-name">resonance_of_three</span><span class="crit-score">0.95</span></div>
+      <div class="crit"><span class="crit-dot partial"></span><span class="crit-name">canon_adherence</span><span class="crit-score">0.75</span></div>
+      <div class="crit"><span class="crit-dot pass"></span><span class="crit-name">four_beat_arc</span><span class="crit-score">0.90</span></div>
+    </div>
+
+    <div class="notes">
+      <strong>Top changes for v2:</strong>
+      restore VT323 crimson 3s in wordmark per canon (oscillation flagged);
+      cut ~35 words to land at ~85 (currently 124 reads at ~33s, target ≤25s);
+      recolor <em>.canon</em> and <em>.leet-stamp</em> text to pass WCAG AA (gold-on-parchment fails 2.62:1).
+    </div>
+  </article>
+
+  <!-- v2 placeholder -->
+  <article class="iteration pending">
+    <div class="iter-head">
+      <h2 class="iter-title">v2 · pending</h2>
+      <div class="iter-meta">
+        <span class="rec">awaiting build</span>
+      </div>
+    </div>
+    <div class="notes">
+      The conductor (Nick) needs to resolve one canon ambiguity before v2 builds —
+      <strong>wordmark fusion</strong>: canon says VT323 crimson 3s embedded in Cinzel; Nick's last edit
+      moved them to Cinzel for visual integration. Either the canon updates to match the integrated
+      wordmark, or the wordmark reverts to match canon. The forge evaluator flagged this as a
+      regression (it can't know which side of the conflict is the human intent).
+    </div>
+  </article>
+
+  <footer>— canon · the first wish-giver · est. 2026 —</footer>
+
+</div>
+</body>
+</html>

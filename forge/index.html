@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cast a Wish — Beamers Forge</title>
+<title>The Beamers' Design Forge — riff on the flyer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@900&family=Caveat:wght@500;700&family=VT323&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
@@ -221,14 +221,22 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">⚜ the beamers forge ⚜</div>
-    <h1>CAST A WISH</h1>
-    <div class="tagline">describe what you want — watch it get conjured.</div>
+    <div class="eyebrow">⚜ beamers only ⚜</div>
+    <h1>THE DESIGN FORGE</h1>
+    <div class="tagline">riff on the flyer — watch the forge refine it.</div>
     <p class="sub">
-      A Builder conjures it. An Oracle judges it. They loop until it's worthy —
-      the same build-evaluate-iterate spell a Beamer casts, run live in your browser.
+      Describe a change to the B3AM3RS flyer. A Builder evolves it, an Oracle scores it
+      against our canon, and they loop until it's worthy. This is for fellow Beamers to
+      play with the design — not a customer tool.
     </p>
   </header>
+
+  <section style="margin-bottom:5vh;">
+    <div style="font-family:'VT323',monospace;font-size:1rem;letter-spacing:0.15em;color:var(--crimson);text-transform:uppercase;text-align:center;margin-bottom:1rem;">the flyer as it stands</div>
+    <div style="border:1.5px solid var(--gold);border-radius:10px;overflow:hidden;box-shadow:3px 3px 0 rgba(60,30,0,0.1);background:#fff;">
+      <iframe id="baseline" sandbox="allow-same-origin" title="current flyer" style="width:100%;height:520px;border:0;display:block;"></iframe>
+    </div>
+  </section>
 
   <section class="console">
     <div id="gate" style="display:none; margin-bottom:1.4rem; padding-bottom:1.2rem; border-bottom:1px dashed var(--gold);">
@@ -237,17 +245,17 @@
       <div class="hint">This forge is private. Ask Nick for the phrase, or it stays shut.</div>
     </div>
 
-    <label class="field-label" for="wish">Your wish</label>
-    <textarea id="wish" rows="3" placeholder="a one-page poster for my Saturday pottery class, warm and handmade-feeling…"></textarea>
-    <div class="hint">Describe an artifact you'd like as a single web page — a poster, a flyer, a landing page, a menu, a CV.</div>
+    <label class="field-label" for="wish">Your riff</label>
+    <textarea id="wish" rows="3" placeholder="darker and more occult — black parchment, blood-gold ink, keep the four beats…"></textarea>
+    <div class="hint">Describe how you'd change the flyer above. The forge starts from it and evolves.</div>
 
     <div class="examples" id="examples"></div>
 
-    <label class="field-label" for="criteria" style="margin-top:0.6rem;">Acceptance criteria <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#6b4a28;">(optional — the Oracle infers them if blank)</span></label>
-    <input type="text" id="criteria" placeholder="e.g. legible on mobile; warm not corporate; one clear call-to-action">
-    <div class="hint">Separate multiple criteria with semicolons.</div>
+    <label class="field-label" for="criteria" style="margin-top:0.6rem;">Extra criteria <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#6b4a28;">(optional — canon criteria always apply)</span></label>
+    <input type="text" id="criteria" placeholder="e.g. must still print clean at A5; keep it readable for over-50s">
+    <div class="hint">Separate multiple criteria with semicolons. Brand canon (four beats, dual register, B3AM3RS wordmark, named loot, Lavanter footer) is always scored.</div>
 
-    <button class="cast-btn" id="cast">✦ Cast the wish ✦</button>
+    <button class="cast-btn" id="cast">✦ Forge the riff ✦</button>
     <div class="status" id="status"></div>
     <div class="notconfig" id="notconfig">
       The forge is built but its magic isn't lit yet — the network keeper hasn't
@@ -265,14 +273,33 @@
 
 <script>
 const WORKER = "https://beamers-forge-api.nick-meinhold.workers.dev";
+const FLYER_URL = "../flyer.html";
 
 const EXAMPLES = [
-  "a poster for a Saturday pottery class, warm and handmade",
-  "a landing page for a dog-walking side hustle",
-  "a one-page menu for a tiny ramen bar",
-  "a 'now hiring' flyer for a corner cafe",
-  "a personal CV page for a junior developer",
+  "darker and more occult — black parchment, blood-gold ink",
+  "lean harder into terminal: more CLI, less mediaeval",
+  "warmer and friendlier for non-techy small-biz owners",
+  "make the three quests feel more like a video-game skill tree",
+  "minimalist — strip the ornament, keep the spell",
 ];
+
+// Canon criteria always scored, regardless of the riff.
+const CANON_CRITERIA = [
+  "honors the riff the Beamer described",
+  "keeps the four-beat arc: spell / three named quests / retention turn / Lavanter footer",
+  "sustains dual register — mythic serif (Cinzel/Caveat) AND terminal tech (VT323, CLI syntax), fused not segregated",
+  "preserves the B3AM3RS wordmark and the named-loot pattern (Dawn Heron / Inbox Whisperer / Booking Golem)",
+  "reads aloud in ~25s, prints clean at A5, responsive on mobile",
+  "all text passes WCAG AA contrast",
+];
+
+// Load the current flyer as the baseline + the base artifact to riff from.
+let flyerBase = "";
+fetch(FLYER_URL).then(r => r.text()).then(html => {
+  flyerBase = html;
+  const f = document.getElementById("baseline");
+  if (f) f.srcdoc = html;
+}).catch(() => {});
 
 const $ = (id) => document.getElementById(id);
 const examplesEl = $("examples");
@@ -366,7 +393,8 @@ async function cast() {
   const wish = $("wish").value.trim();
   if (wish.length < 3) { setStatus("whisper a real wish first.", true); return; }
   const criteriaRaw = $("criteria").value.trim();
-  const criteria = criteriaRaw ? criteriaRaw.split(";").map(s => s.trim()).filter(Boolean) : null;
+  const extra = criteriaRaw ? criteriaRaw.split(";").map(s => s.trim()).filter(Boolean) : [];
+  const criteria = [...CANON_CRITERIA, ...extra];
   const passphrase = $("passphrase").value.trim();
   if (passphrase) localStorage.setItem("forgeKey", passphrase);
 
@@ -379,7 +407,7 @@ async function cast() {
     const res = await fetch(WORKER + "/cast", {
       method: "POST",
       headers: { "content-type": "application/json", "X-Forge-Key": passphrase },
-      body: JSON.stringify({ wish, criteria }),
+      body: JSON.stringify({ wish, criteria, base: flyerBase }),
     });
 
     if (res.status === 401) {

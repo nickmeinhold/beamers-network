@@ -132,7 +132,9 @@ function extractJson(text) {
   return JSON.parse(raw.slice(start, end + 1));
 }
 
-const BUILDER_SYSTEM = `You are the Builder in a forge build-evaluate loop. You grant a "wish" by producing ONE self-contained HTML document — all CSS inline in a <style> tag, no external JS, no external assets except Google Fonts via <link>. The artifact must be visually polished, print-friendly, and immediately renderable in an iframe.
+const BUILDER_SYSTEM = `You are the Builder in a forge build-evaluate loop for the Beamers Network flyer. You produce ONE self-contained HTML document — all CSS inline in a <style> tag, no external JS, no external assets except Google Fonts via <link>. The artifact must be visually polished, print-friendly at A5, and immediately renderable in an iframe.
+
+If you are given a BASE ARTIFACT, you are RIFFING on it: apply the requested change while preserving everything that already works (structure, brand canon, the parts the riff doesn't touch). Do not rebuild from scratch — evolve it.
 
 Output ONLY the HTML document. No prose, no explanation, no markdown fences. Start with <!doctype html>.
 
@@ -157,16 +159,21 @@ function deriveCriteriaPrompt(wish, criteria) {
   return `(no explicit criteria supplied — infer 3-5 sensible acceptance criteria from the wish, e.g. clarity, visual polish, fit-for-purpose, responsiveness, and whether it actually fulfils what was asked)`;
 }
 
-async function runForge(env, { wish, criteria }, emit) {
+async function runForge(env, { wish, criteria, base }, emit) {
   const criteriaText = deriveCriteriaPrompt(wish, criteria);
   const iterations = [];
   let lastEvalNote = "";
+  let currentBase = base || "";
   let tokensUsed = 0;
 
   for (let i = 1; i <= CONFIG.MAX_ITERATIONS; i++) {
     // ---- Builder ----
     await emit("phase", { iteration: i, role: "builder", status: "casting" });
-    const builderUserParts = [`WISH:\n${wish}`, `\nACCEPTANCE CRITERIA:\n${criteriaText}`];
+    const builderUserParts = [`RIFF REQUEST:\n${wish}`, `\nACCEPTANCE CRITERIA:\n${criteriaText}`];
+    if (currentBase) {
+      const label = i === 1 ? "BASE ARTIFACT (riff on this — evolve, don't rebuild):" : "CURRENT ARTIFACT (your previous iteration — refine it):";
+      builderUserParts.push(`\n${label}\n${currentBase.slice(0, 20000)}`);
+    }
     if (lastEvalNote) builderUserParts.push(`\nPREVIOUS EVALUATION (address these):\n${lastEvalNote}`);
     const builder = await callAnthropic(env, {
       model: CONFIG.BUILDER_MODEL,
@@ -176,6 +183,7 @@ async function runForge(env, { wish, criteria }, emit) {
     });
     tokensUsed += builder.tokens;
     const html = extractHtml(builder.text);
+    currentBase = html; // next iteration refines this one
     await emit("phase", { iteration: i, role: "builder", status: "done" });
 
     // ---- Evaluator (fresh context) ----
@@ -246,7 +254,8 @@ async function handleCast(request, env) {
     return new Response(JSON.stringify({ error: "bad_request", message: "Body must be JSON { wish }" }), { status: 400, headers: { "content-type": "application/json", ...cors } });
   }
   const wish = (payload.wish || "").toString().trim();
-  const criteria = Array.isArray(payload.criteria) ? payload.criteria.slice(0, 8).map((c) => c.toString().slice(0, 200)) : null;
+  const criteria = Array.isArray(payload.criteria) ? payload.criteria.slice(0, 12).map((c) => c.toString().slice(0, 200)) : null;
+  const base = payload.base ? payload.base.toString().slice(0, 24000) : "";
   if (wish.length < 3 || wish.length > 1000) {
     return new Response(JSON.stringify({ error: "bad_request", message: "wish must be 3-1000 chars" }), { status: 400, headers: { "content-type": "application/json", ...cors } });
   }
@@ -269,7 +278,7 @@ async function handleCast(request, env) {
 
   (async () => {
     try {
-      const result = await runForge(env, { wish, criteria }, emit);
+      const result = await runForge(env, { wish, criteria, base }, emit);
       await emit("done", { shipped: result.shipped, bestIndex: result.bestIndex, iterations: result.iterations.length, tokensUsed: result.tokensUsed });
     } catch (err) {
       if (err instanceof SpendCapError) {

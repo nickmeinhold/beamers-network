@@ -1,0 +1,10 @@
+name = "beamers-forge-api"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+
+# No KV/D1 binding — the current Cloudflare token lacks those scopes.
+# Cost control lives on the Anthropic API key's own monthly spend limit;
+# per-IP soft rate limiting uses the Cache API inside the Worker.
+#
+# ANTHROPIC_API_KEY is set as a secret, not here:
+#   wrangler secret put ANTHROPIC_API_KEY

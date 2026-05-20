@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cast a Wish — Beamers Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@900&family=Caveat:wght@500;700&family=VT323&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1208;
+    --parchment: #f3e6c4;
+    --parchment-dark: #e8d3a0;
+    --gold: #b8860b;
+    --gold-light: #d4a634;
+    --crimson: #8b1a1a;
+    --forest: #2d4a2b;
+    --pass: #2d6a2b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Crimson Pro", Georgia, serif;
+    color: var(--ink);
+    line-height: 1.5;
+    background:
+      radial-gradient(ellipse at top left, #fff2d0 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, #f0d9a0 0%, transparent 60%),
+      linear-gradient(135deg, var(--parchment) 0%, var(--parchment-dark) 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 6vw 5vw 12vh; }
+
+  header { text-align: center; margin-bottom: 7vh; }
+  .eyebrow {
+    font-family: "VT323", monospace;
+    font-size: 1rem;
+    letter-spacing: 0.35em;
+    color: var(--crimson);
+    text-transform: uppercase;
+  }
+  h1 {
+    font-family: "Cinzel Decorative", serif;
+    font-weight: 900;
+    font-size: clamp(2.2rem, 7vw, 3.6rem);
+    margin: 0.4rem 0 0;
+    color: var(--ink);
+    text-shadow: 2.5px 2.5px 0 var(--gold-light);
+  }
+  .tagline {
+    font-family: "Caveat", cursive;
+    font-size: clamp(1.3rem, 4vw, 1.9rem);
+    color: var(--crimson);
+    margin-top: 0.6rem;
+  }
+  .sub {
+    font-style: italic;
+    color: #4a2f15;
+    margin-top: 0.8rem;
+    font-size: 1.05rem;
+  }
+
+  .console {
+    background: rgba(255, 250, 230, 0.7);
+    border: 1.5px solid var(--gold);
+    border-radius: 10px;
+    padding: clamp(1.2rem, 4vw, 2rem);
+    box-shadow: 4px 4px 0 rgba(60, 30, 0, 0.12);
+  }
+  label.field-label {
+    display: block;
+    font-family: "Cinzel Decorative", serif;
+    font-weight: 900;
+    font-size: 0.95rem;
+    color: var(--forest);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.5rem;
+  }
+  textarea, input[type=text] {
+    width: 100%;
+    font-family: "Crimson Pro", serif;
+    font-size: 1.1rem;
+    padding: 0.8rem 1rem;
+    border: 1.5px solid var(--gold);
+    border-radius: 6px;
+    background: #fffdf6;
+    color: var(--ink);
+    resize: vertical;
+  }
+  textarea:focus, input:focus { outline: 2px solid var(--crimson); border-color: var(--crimson); }
+  .hint { font-size: 0.85rem; color: #6b4a28; margin-top: 0.3rem; font-style: italic; }
+
+  .examples { margin: 0.8rem 0 1.4rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .example-chip {
+    font-family: "VT323", monospace;
+    font-size: 0.95rem;
+    background: rgba(184, 134, 11, 0.12);
+    border: 1px dashed var(--gold);
+    border-radius: 20px;
+    padding: 0.25rem 0.85rem;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .example-chip:hover { background: rgba(139, 26, 26, 0.12); border-color: var(--crimson); }
+
+  .cast-btn {
+    display: block;
+    width: 100%;
+    margin-top: 1.4rem;
+    font-family: "Cinzel Decorative", serif;
+    font-weight: 900;
+    font-size: 1.3rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--parchment);
+    background: linear-gradient(135deg, var(--crimson) 0%, #6b1414 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #4a0e0e, 0 0 0 1px var(--gold) inset;
+    transition: transform 0.08s;
+  }
+  .cast-btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .cast-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #4a0e0e, 0 0 0 1px var(--gold) inset; }
+  .cast-btn:disabled { opacity: 0.55; cursor: wait; }
+
+  /* status banner */
+  .status {
+    margin-top: 1.4rem;
+    font-family: "VT323", monospace;
+    font-size: 1.15rem;
+    color: var(--forest);
+    min-height: 1.5rem;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+  .status .spark { color: var(--gold); }
+  .status.err { color: var(--crimson); }
+
+  /* config warning */
+  .notconfig {
+    margin-top: 1rem;
+    padding: 0.8rem 1rem;
+    border-left: 3px solid var(--crimson);
+    background: rgba(139, 26, 26, 0.07);
+    font-size: 0.95rem;
+    display: none;
+  }
+
+  /* iterations */
+  .iterations { margin-top: 4vh; display: flex; flex-direction: column; gap: 4vh; }
+  .iter {
+    border: 1.5px solid var(--gold);
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(255, 250, 230, 0.7);
+    box-shadow: 3px 3px 0 rgba(60, 30, 0, 0.1);
+    animation: rise 0.4s ease;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  .iter.best { border: 2.5px solid var(--pass); box-shadow: 0 0 0 3px rgba(45, 106, 43, 0.2), 4px 4px 0 rgba(60,30,0,0.1); }
+
+  .iter-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.7rem 1.1rem;
+    background: rgba(184, 134, 11, 0.12);
+    border-bottom: 1px dashed var(--gold);
+    flex-wrap: wrap; gap: 0.5rem;
+  }
+  .iter-name { font-family: "Cinzel Decorative", serif; font-weight: 900; color: var(--forest); }
+  .iter-score { font-family: "VT323", monospace; font-size: 1.3rem; color: var(--crimson); }
+  .iter-score .granted {
+    background: var(--pass); color: var(--parchment);
+    padding: 0.1rem 0.6rem; border-radius: 4px; margin-left: 0.6rem;
+    font-size: 0.9rem; letter-spacing: 0.1em;
+  }
+  .meter { height: 7px; background: rgba(0,0,0,0.1); }
+  .meter > div { height: 100%; background: linear-gradient(90deg, var(--gold), var(--pass)); transition: width 0.6s ease; }
+
+  .iter-body { display: grid; grid-template-columns: 1.3fr 1fr; }
+  @media (max-width: 720px) { .iter-body { grid-template-columns: 1fr; } }
+  .preview { border-right: 1px dashed var(--gold); min-height: 320px; background: #fff; }
+  @media (max-width: 720px) { .preview { border-right: none; border-bottom: 1px dashed var(--gold); } }
+  .preview iframe { width: 100%; height: 100%; min-height: 320px; border: 0; display: block; }
+
+  .judgment { padding: 1rem 1.2rem; }
+  .judgment h4 {
+    font-family: "VT323", monospace; font-size: 1.1rem; letter-spacing: 0.1em;
+    color: var(--crimson); margin: 0 0 0.6rem; text-transform: uppercase;
+  }
+  .crit { font-size: 0.92rem; margin: 0.4rem 0; display: flex; gap: 0.5rem; align-items: baseline; }
+  .crit .dot { flex: none; width: 0.6rem; height: 0.6rem; border-radius: 50%; margin-top: 0.35rem; }
+  .crit .dot.pass { background: var(--pass); }
+  .crit .dot.fail { background: var(--crimson); }
+  .crit .cname { font-family: "VT323", monospace; color: var(--ink); }
+  .crit .cnote { color: #5a3a20; font-style: italic; }
+  .topfix {
+    margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed var(--gold);
+    font-style: italic; color: var(--forest); font-size: 0.95rem;
+  }
+  .topfix strong { font-style: normal; color: var(--crimson); }
+
+  .iter-actions { padding: 0.8rem 1.2rem; border-top: 1px dashed var(--gold); display: none; gap: 0.8rem; }
+  .iter.best .iter-actions { display: flex; }
+  .iter-actions button {
+    font-family: "VT323", monospace; font-size: 1rem;
+    background: var(--forest); color: var(--parchment);
+    border: none; border-radius: 5px; padding: 0.4rem 1rem; cursor: pointer; letter-spacing: 0.08em;
+  }
+  .iter-actions button:hover { background: var(--pass); }
+
+  footer { text-align: center; margin-top: 9vh; font-family: "VT323", monospace; color: var(--gold); letter-spacing: 0.2em; font-size: 0.95rem; }
+  footer a { color: var(--crimson); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">⚜ the beamers forge ⚜</div>
+    <h1>CAST A WISH</h1>
+    <div class="tagline">describe what you want — watch it get conjured.</div>
+    <p class="sub">
+      A Builder conjures it. An Oracle judges it. They loop until it's worthy —
+      the same build-evaluate-iterate spell a Beamer casts, run live in your browser.
+    </p>
+  </header>
+
+  <section class="console">
+    <label class="field-label" for="wish">Your wish</label>
+    <textarea id="wish" rows="3" placeholder="a one-page poster for my Saturday pottery class, warm and handmade-feeling…"></textarea>
+    <div class="hint">Describe an artifact you'd like as a single web page — a poster, a flyer, a landing page, a menu, a CV.</div>
+
+    <div class="examples" id="examples"></div>
+
+    <label class="field-label" for="criteria" style="margin-top:0.6rem;">Acceptance criteria <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#6b4a28;">(optional — the Oracle infers them if blank)</span></label>
+    <input type="text" id="criteria" placeholder="e.g. legible on mobile; warm not corporate; one clear call-to-action">
+    <div class="hint">Separate multiple criteria with semicolons.</div>
+
+    <button class="cast-btn" id="cast">✦ Cast the wish ✦</button>
+    <div class="status" id="status"></div>
+    <div class="notconfig" id="notconfig">
+      The forge is built but its magic isn't lit yet — the network keeper hasn't
+      added an Anthropic key to the backend. Check back soon.
+    </div>
+  </section>
+
+  <section class="iterations" id="iterations"></section>
+
+  <footer>
+    — forge: build → evaluate → iterate · <a href="../">back to the network</a> —
+  </footer>
+
+</div>
+
+<script>
+const WORKER = "https://beamers-forge-api.nick-meinhold.workers.dev";
+
+const EXAMPLES = [
+  "a poster for a Saturday pottery class, warm and handmade",
+  "a landing page for a dog-walking side hustle",
+  "a one-page menu for a tiny ramen bar",
+  "a 'now hiring' flyer for a corner cafe",
+  "a personal CV page for a junior developer",
+];
+
+const $ = (id) => document.getElementById(id);
+const examplesEl = $("examples");
+EXAMPLES.forEach((ex) => {
+  const chip = document.createElement("span");
+  chip.className = "example-chip";
+  chip.textContent = ex;
+  chip.onclick = () => { $("wish").value = ex; $("wish").focus(); };
+  examplesEl.appendChild(chip);
+});
+
+// Surface "not configured" state up front so people aren't surprised.
+fetch(WORKER + "/health").then(r => r.json()).then(h => {
+  if (!h.configured) { $("notconfig").style.display = "block"; }
+}).catch(() => {});
+
+const iterationsEl = $("iterations");
+const statusEl = $("status");
+let iterEls = {};
+
+function setStatus(html, isErr) {
+  statusEl.className = "status" + (isErr ? " err" : "");
+  statusEl.innerHTML = html;
+}
+
+function ensureIterCard(n) {
+  if (iterEls[n]) return iterEls[n];
+  const el = document.createElement("article");
+  el.className = "iter";
+  el.innerHTML = `
+    <div class="iter-bar">
+      <span class="iter-name">iteration ${n}</span>
+      <span class="iter-score" data-score>…</span>
+    </div>
+    <div class="meter"><div data-meter style="width:0%"></div></div>
+    <div class="iter-body">
+      <div class="preview"><iframe data-frame sandbox="allow-same-origin" title="iteration ${n} preview"></iframe></div>
+      <div class="judgment"><h4>the oracle's judgment</h4><div data-crits><em>scoring…</em></div><div class="topfix" data-topfix></div></div>
+    </div>
+    <div class="iter-actions">
+      <button data-copy>copy html</button>
+      <button data-download>download</button>
+    </div>`;
+  iterationsEl.appendChild(el);
+  iterEls[n] = el;
+  return el;
+}
+
+function renderIteration(rec) {
+  const el = ensureIterCard(rec.iteration);
+  const frame = el.querySelector("[data-frame]");
+  frame.srcdoc = rec.html;
+  const pct = Math.round((rec.overall || 0) * 100);
+  el.querySelector("[data-score]").innerHTML = (rec.overall != null ? rec.overall.toFixed(2) : "?") +
+    (rec.verdict === "ship" ? '<span class="granted">GRANTED</span>' : "");
+  el.querySelector("[data-meter]").style.width = pct + "%";
+  const crits = el.querySelector("[data-crits]");
+  crits.innerHTML = "";
+  (rec.scores || []).forEach((s) => {
+    const row = document.createElement("div");
+    row.className = "crit";
+    row.innerHTML = `<span class="dot ${s.passed ? "pass" : "fail"}"></span>
+      <span><span class="cname">${escapeHtml(s.criterion)}</span> · ${(s.score ?? 0).toFixed ? s.score.toFixed(2) : s.score}
+      <br><span class="cnote">${escapeHtml(s.note || "")}</span></span>`;
+    crits.appendChild(row);
+  });
+  if (rec.topFix) {
+    el.querySelector("[data-topfix]").innerHTML = `<strong>next incantation:</strong> ${escapeHtml(rec.topFix)}`;
+  }
+  // wire actions
+  el.querySelector("[data-copy]").onclick = () => navigator.clipboard.writeText(rec.html);
+  el.querySelector("[data-download]").onclick = () => {
+    const blob = new Blob([rec.html], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "granted-wish.html";
+    a.click();
+  };
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+async function cast() {
+  const wish = $("wish").value.trim();
+  if (wish.length < 3) { setStatus("whisper a real wish first.", true); return; }
+  const criteriaRaw = $("criteria").value.trim();
+  const criteria = criteriaRaw ? criteriaRaw.split(";").map(s => s.trim()).filter(Boolean) : null;
+
+  // reset
+  iterationsEl.innerHTML = ""; iterEls = {};
+  $("cast").disabled = true;
+  setStatus('<span class="spark">✦</span> opening the forge…');
+
+  try {
+    const res = await fetch(WORKER + "/cast", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ wish, criteria }),
+    });
+
+    if (!res.ok && res.headers.get("content-type")?.includes("application/json")) {
+      const err = await res.json();
+      setStatus(escapeHtml(err.message || "the forge refused the wish."), true);
+      $("cast").disabled = false;
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const events = buf.split("\n\n");
+      buf = events.pop();
+      for (const block of events) handleEvent(block);
+    }
+  } catch (e) {
+    setStatus("the connection to the forge broke: " + escapeHtml(e.message), true);
+  } finally {
+    $("cast").disabled = false;
+  }
+}
+
+function handleEvent(block) {
+  const lines = block.split("\n");
+  let event = "message", data = "";
+  for (const line of lines) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) data += line.slice(5).trim();
+  }
+  if (!data) return;
+  let payload;
+  try { payload = JSON.parse(data); } catch { return; }
+
+  if (event === "phase") {
+    const role = payload.role === "builder" ? "the Builder conjures" : "the Oracle judges";
+    const verb = payload.status === "done" ? "…done" : "…";
+    setStatus(`<span class="spark">✦</span> iteration ${payload.iteration}: ${role}${verb}`);
+    if (payload.role === "builder" && payload.status === "casting") ensureIterCard(payload.iteration);
+  } else if (event === "iteration") {
+    renderIteration(payload);
+    setStatus(`<span class="spark">✦</span> iteration ${payload.iteration} scored ${(payload.overall||0).toFixed(2)}`);
+  } else if (event === "done") {
+    const best = iterEls[payload.bestIndex + 1];
+    if (best) best.classList.add("best");
+    setStatus(payload.shipped
+      ? `<span class="spark">✦</span> wish granted — best iteration ${payload.bestIndex + 1} shipped. ✦`
+      : `the forge tried ${payload.iterations} iterations; best is marked. Refine your wish and cast again.`);
+  } else if (event === "error") {
+    setStatus(escapeHtml(payload.message || "the forge faltered."), true);
+  }
+}
+
+$("cast").onclick = cast;
+$("wish").addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") cast(); });
+</script>
+</body>
+</html>

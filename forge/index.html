@@ -186,6 +186,41 @@
   .preview { border-right: 1px dashed var(--gold); min-height: 320px; background: #fff; }
   @media (max-width: 720px) { .preview { border-right: none; border-bottom: 1px dashed var(--gold); } }
   .preview iframe { width: 100%; height: 100%; min-height: 320px; border: 0; display: block; }
+  .preview iframe.hidden { display: none; }
+
+  /* live "incantation scroll" — the HTML being inscribed, terminal-style */
+  .incantation {
+    margin: 0;
+    height: 100%;
+    min-height: 320px;
+    max-height: 360px;
+    overflow: auto;
+    background: #0d1410;
+    color: #7CFC9B;
+    font-family: "VT323", monospace;
+    font-size: 0.92rem;
+    line-height: 1.25;
+    padding: 0.8rem 1rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: none;
+  }
+  .incantation.live { display: block; }
+  .incantation .cursor { animation: blink 1s steps(1) infinite; color: #7CFC9B; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* phase stepper in the iteration bar */
+  .steps { display: flex; gap: 0.4rem; align-items: center; font-family: "VT323", monospace; font-size: 0.95rem; }
+  .step {
+    padding: 0.1rem 0.6rem; border-radius: 12px;
+    border: 1px solid var(--gold); color: #9a7a3a; opacity: 0.5;
+    letter-spacing: 0.05em; white-space: nowrap;
+  }
+  .step.active { opacity: 1; color: var(--parchment); background: var(--crimson); border-color: var(--crimson); box-shadow: 0 0 8px rgba(139,26,26,0.5); }
+  .step.done { opacity: 1; color: var(--pass); border-color: var(--pass); }
+  .step.done::before { content: "✓ "; }
+
+  .elapsed { font-family: "VT323", monospace; color: var(--gold); font-size: 0.9rem; margin-left: 0.5rem; }
 
   .judgment { padding: 1rem 1.2rem; }
   .judgment h4 {
@@ -324,6 +359,20 @@ fetch(WORKER + "/health").then(r => r.json()).then(h => {
 const iterationsEl = $("iterations");
 const statusEl = $("status");
 let iterEls = {};
+let timers = {};
+let scrollBuf = {};
+
+function setStep(card, which, state) {
+  const step = card.querySelector(`[data-step="${which}"]`);
+  if (step) step.className = "step" + (state ? " " + state : "");
+}
+
+function startTimer(card, n) {
+  const el = card.querySelector("[data-elapsed]");
+  const t0 = Date.now();
+  timers[n] = setInterval(() => { el.textContent = ((Date.now() - t0) / 1000).toFixed(1) + "s"; }, 100);
+}
+function stopTimer(n) { if (timers[n]) { clearInterval(timers[n]); delete timers[n]; } }
 
 function setStatus(html, isErr) {
   statusEl.className = "status" + (isErr ? " err" : "");
@@ -337,12 +386,20 @@ function ensureIterCard(n) {
   el.innerHTML = `
     <div class="iter-bar">
       <span class="iter-name">iteration ${n}</span>
+      <span class="steps">
+        <span class="step" data-step="builder">⚒ conjuring</span>
+        <span class="step" data-step="evaluator">👁 judging</span>
+        <span class="elapsed" data-elapsed></span>
+      </span>
       <span class="iter-score" data-score>…</span>
     </div>
     <div class="meter"><div data-meter style="width:0%"></div></div>
     <div class="iter-body">
-      <div class="preview"><iframe data-frame sandbox="allow-same-origin" title="iteration ${n} preview"></iframe></div>
-      <div class="judgment"><h4>the oracle's judgment</h4><div data-crits><em>scoring…</em></div><div class="topfix" data-topfix></div></div>
+      <div class="preview">
+        <pre class="incantation" data-scroll></pre>
+        <iframe data-frame class="hidden" sandbox="allow-same-origin" title="iteration ${n} preview"></iframe>
+      </div>
+      <div class="judgment"><h4>the oracle's judgment</h4><div data-crits><em>awaiting the conjuring…</em></div><div class="topfix" data-topfix></div></div>
     </div>
     <div class="iter-actions">
       <button data-copy>copy html</button>
@@ -355,7 +412,13 @@ function ensureIterCard(n) {
 
 function renderIteration(rec) {
   const el = ensureIterCard(rec.iteration);
+  stopTimer(rec.iteration);
+  setStep(el, "evaluator", "done");
+  // swap the live inscription for the rendered artifact
+  const scroll = el.querySelector("[data-scroll]");
+  scroll.classList.remove("live");
   const frame = el.querySelector("[data-frame]");
+  frame.classList.remove("hidden");
   frame.srcdoc = rec.html;
   const pct = Math.round((rec.overall || 0) * 100);
   el.querySelector("[data-score]").innerHTML = (rec.overall != null ? rec.overall.toFixed(2) : "?") +
@@ -399,7 +462,8 @@ async function cast() {
   if (passphrase) localStorage.setItem("forgeKey", passphrase);
 
   // reset
-  iterationsEl.innerHTML = ""; iterEls = {};
+  Object.keys(timers).forEach(stopTimer);
+  iterationsEl.innerHTML = ""; iterEls = {}; scrollBuf = {};
   $("cast").disabled = true;
   setStatus('<span class="spark">✦</span> opening the forge…');
 
@@ -455,13 +519,37 @@ function handleEvent(block) {
   try { payload = JSON.parse(data); } catch { return; }
 
   if (event === "phase") {
-    const role = payload.role === "builder" ? "the Builder conjures" : "the Oracle judges";
-    const verb = payload.status === "done" ? "…done" : "…";
-    setStatus(`<span class="spark">✦</span> iteration ${payload.iteration}: ${role}${verb}`);
-    if (payload.role === "builder" && payload.status === "casting") ensureIterCard(payload.iteration);
+    const n = payload.iteration;
+    const card = ensureIterCard(n);
+    if (payload.role === "builder" && payload.status === "casting") {
+      scrollBuf[n] = "";
+      const scroll = card.querySelector("[data-scroll]");
+      scroll.classList.add("live");
+      scroll.innerHTML = '<span class="cursor">▌</span>';
+      setStep(card, "builder", "active");
+      startTimer(card, n);
+      setStatus(`<span class="spark">✦</span> iteration ${n}: the Builder conjures…`);
+    } else if (payload.role === "builder" && payload.status === "done") {
+      setStep(card, "builder", "done");
+      const tag = payload.model && payload.model.includes("haiku") ? "haiku" : (payload.model && payload.model.includes("sonnet") ? "sonnet" : "");
+      setStatus(`<span class="spark">✦</span> iteration ${n}: conjured${tag ? " ("+tag+")" : ""} — the Oracle reads it…`);
+    } else if (payload.role === "evaluator" && payload.status === "scoring") {
+      setStep(card, "evaluator", "active");
+      const crits = card.querySelector("[data-crits]");
+      crits.innerHTML = "<em>the Oracle weighs it against the canon…</em>";
+    }
+  } else if (event === "delta") {
+    const n = payload.iteration;
+    const card = iterEls[n];
+    if (!card) return;
+    scrollBuf[n] = (scrollBuf[n] || "") + payload.text;
+    const scroll = card.querySelector("[data-scroll]");
+    // show the tail of the inscription so it reads like a live terminal
+    const tail = scrollBuf[n].slice(-2400);
+    scroll.innerHTML = escapeHtml(tail) + '<span class="cursor">▌</span>';
+    scroll.scrollTop = scroll.scrollHeight;
   } else if (event === "iteration") {
     renderIteration(payload);
-    setStatus(`<span class="spark">✦</span> iteration ${payload.iteration} scored ${(payload.overall||0).toFixed(2)}`);
   } else if (event === "done") {
     const best = iterEls[payload.bestIndex + 1];
     if (best) best.classList.add("best");
@@ -469,6 +557,7 @@ function handleEvent(block) {
       ? `<span class="spark">✦</span> wish granted — best iteration ${payload.bestIndex + 1} shipped. ✦`
       : `the forge tried ${payload.iterations} iterations; best is marked. Refine your wish and cast again.`);
   } else if (event === "error") {
+    Object.keys(timers).forEach(stopTimer);
     setStatus(escapeHtml(payload.message || "the forge faltered."), true);
   }
 }

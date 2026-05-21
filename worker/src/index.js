@@ -20,8 +20,11 @@
  */
 
 const CONFIG = {
-  BUILDER_MODEL: "claude-sonnet-4-6",
-  EVALUATOR_MODEL: "claude-haiku-4-5-20251001",
+  // Fallback chains: try best model first, degrade on rate-limit. On a Max
+  // subscription each model tier has its own usage window, so Sonnet/Opus can be
+  // spent while Haiku is fine — fall back rather than fail.
+  BUILDER_MODELS: ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+  EVALUATOR_MODELS: ["claude-haiku-4-5-20251001"],
   MAX_ITERATIONS: 3,
   SHIP_THRESHOLD: 0.85,
   PER_IP_DAILY_WISHES: 5,
@@ -67,6 +70,7 @@ function safeEqual(a, b) {
 }
 
 class SpendCapError extends Error {}
+class RateLimitError extends Error {}
 
 /**
  * Auth headers. Prefer the Max-subscription OAuth token (CLAUDE_CODE_OAUTH_TOKEN
@@ -95,10 +99,11 @@ async function callAnthropic(env, { model, system, messages, max_tokens }) {
   });
   if (!res.ok) {
     const body = await res.text();
-    // Anthropic returns 400 invalid_request_error with a credit/spend-limit message,
-    // or 429 when rate/spend limited. Treat these as the well running dry.
-    if (res.status === 429 || /credit|spend|limit|billing|quota/i.test(body)) {
-      throw new SpendCapError("well_dry");
+    // Distinguish a per-model rate limit (retry on a smaller model) from other failures.
+    let errType = "";
+    try { errType = (JSON.parse(body).error || {}).type || ""; } catch {}
+    if (res.status === 429 || errType === "rate_limit_error") {
+      throw new RateLimitError(`rate_limited:${model}`);
     }
     throw new Error(`Anthropic ${res.status}: ${body.slice(0, 300)}`);
   }
@@ -108,7 +113,71 @@ async function callAnthropic(env, { model, system, messages, max_tokens }) {
     .map((b) => b.text)
     .join("");
   const usage = json.usage || { input_tokens: 0, output_tokens: 0 };
-  return { text, tokens: (usage.input_tokens || 0) + (usage.output_tokens || 0) };
+  return { text, tokens: (usage.input_tokens || 0) + (usage.output_tokens || 0), model };
+}
+
+/** Streaming variant — forwards each text delta to onDelta as it arrives. */
+async function callAnthropicStream(env, { model, system, messages, max_tokens }, onDelta) {
+  const res = await fetch(ANTHROPIC_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "anthropic-version": ANTHROPIC_VERSION,
+      ...authHeaders(env),
+    },
+    body: JSON.stringify({ model, system, messages, max_tokens, stream: true }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    let errType = "";
+    try { errType = (JSON.parse(body).error || {}).type || ""; } catch {}
+    if (res.status === 429 || errType === "rate_limit_error") throw new RateLimitError(`rate_limited:${model}`);
+    throw new Error(`Anthropic ${res.status}: ${body.slice(0, 300)}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "", text = "", inTok = 0, outTok = 0;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop();
+    for (const line of lines) {
+      const l = line.trim();
+      if (!l.startsWith("data:")) continue;
+      const payload = l.slice(5).trim();
+      if (payload === "[DONE]") continue;
+      let ev;
+      try { ev = JSON.parse(payload); } catch { continue; }
+      if (ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta") {
+        text += ev.delta.text;
+        if (onDelta) await onDelta(ev.delta.text);
+      } else if (ev.type === "message_start") {
+        inTok = (ev.message && ev.message.usage && ev.message.usage.input_tokens) || 0;
+      } else if (ev.type === "message_delta") {
+        outTok = (ev.usage && ev.usage.output_tokens) || outTok;
+      }
+    }
+  }
+  return { text, tokens: inTok + outTok, model };
+}
+
+/** Try each model in order; fall back on rate-limit. If all are limited, the well is dry.
+ *  If onDelta is given, streams the response (used for the builder). */
+async function callWithFallback(env, models, params, onDelta) {
+  let lastRate = null;
+  for (const model of models) {
+    try {
+      return onDelta
+        ? await callAnthropicStream(env, { ...params, model }, onDelta)
+        : await callAnthropic(env, { ...params, model });
+    } catch (e) {
+      if (e instanceof RateLimitError) { lastRate = e; continue; }
+      throw e;
+    }
+  }
+  throw new SpendCapError(lastRate ? lastRate.message : "well_dry");
 }
 
 /**
@@ -191,21 +260,19 @@ async function runForge(env, { wish, criteria, base }, emit) {
       builderUserParts.push(`\n${label}\n${currentBase.slice(0, 20000)}`);
     }
     if (lastEvalNote) builderUserParts.push(`\nPREVIOUS EVALUATION (address these):\n${lastEvalNote}`);
-    const builder = await callAnthropic(env, {
-      model: CONFIG.BUILDER_MODEL,
+    const builder = await callWithFallback(env, CONFIG.BUILDER_MODELS, {
       system: BUILDER_SYSTEM,
       max_tokens: CONFIG.MAX_OUTPUT_TOKENS_BUILDER,
       messages: [{ role: "user", content: builderUserParts.join("\n") }],
-    });
+    }, (chunk) => emit("delta", { iteration: i, text: chunk }));
     tokensUsed += builder.tokens;
     const html = extractHtml(builder.text);
     currentBase = html; // next iteration refines this one
-    await emit("phase", { iteration: i, role: "builder", status: "done" });
+    await emit("phase", { iteration: i, role: "builder", status: "done", model: builder.model });
 
     // ---- Evaluator (fresh context) ----
     await emit("phase", { iteration: i, role: "evaluator", status: "scoring" });
-    const evaluator = await callAnthropic(env, {
-      model: CONFIG.EVALUATOR_MODEL,
+    const evaluator = await callWithFallback(env, CONFIG.EVALUATOR_MODELS, {
       system: EVALUATOR_SYSTEM,
       max_tokens: CONFIG.MAX_OUTPUT_TOKENS_EVALUATOR,
       messages: [
@@ -226,7 +293,7 @@ async function runForge(env, { wish, criteria, base }, emit) {
     const overall = typeof evalObj.overall === "number" ? evalObj.overall : 0;
     lastEvalNote = evalObj.topFix || "";
 
-    const record = { iteration: i, html, scores: evalObj.scores || [], overall, verdict: evalObj.verdict, topFix: evalObj.topFix || "" };
+    const record = { iteration: i, html, scores: evalObj.scores || [], overall, verdict: evalObj.verdict, topFix: evalObj.topFix || "", model: builder.model };
     iterations.push(record);
     await emit("iteration", record);
 

@@ -8,14 +8,15 @@
  *     event: done       data: {shipped, iterations, bestIndex}
  *     event: error      data: {message}
  *
- * Abuse/cost controls (public endpoint on Nick's Anthropic account):
- *   - HARD spend cap: set a monthly spend limit on the Anthropic API key itself
- *     in the console. The Worker surfaces the limit error as "well dry". This is
- *     the load-bearing cost control (the CF token has no KV/D1 to track spend).
- *   - per-IP soft rate limit via the Cache API (best-effort, per-colo, evictable —
- *     stops casual hammering, not a determined attacker; the spend cap is the real wall)
- *   - max iterations per wish
- *   - cost-tier models (Haiku evaluator, Sonnet builder), never Opus
+ * Auth: prefers CLAUDE_CODE_OAUTH_TOKEN (Max subscription, from `claude setup-token`)
+ * via the oauth-2025-04-20 beta header — no per-token billing. Falls back to a metered
+ * ANTHROPIC_API_KEY. Same pattern as the xdeca Gremlin service.
+ *
+ * Access + abuse controls (private team tool):
+ *   - FORGE_PASSPHRASE gate: fail-closed, only invited Beamers can spend (X-Forge-Key)
+ *   - per-IP soft rate limit via the Cache API (best-effort, per-colo, evictable)
+ *   - max iterations per riff; cost-tier models (Haiku evaluator, Sonnet builder), never Opus
+ *   - on OAuth, the real ceiling is the Max subscription's own usage limits; a 429 surfaces as "well dry"
  */
 
 const CONFIG = {
@@ -67,13 +68,28 @@ function safeEqual(a, b) {
 
 class SpendCapError extends Error {}
 
+/**
+ * Auth headers. Prefer the Max-subscription OAuth token (CLAUDE_CODE_OAUTH_TOKEN
+ * from `claude setup-token`) — routes through the subscription, no per-token billing.
+ * The oauth-2025-04-20 beta header is the mechanism. Falls back to a metered API key.
+ */
+function authHeaders(env) {
+  if (env.CLAUDE_CODE_OAUTH_TOKEN) {
+    return {
+      authorization: `Bearer ${env.CLAUDE_CODE_OAUTH_TOKEN}`,
+      "anthropic-beta": "oauth-2025-04-20",
+    };
+  }
+  return { "x-api-key": env.ANTHROPIC_API_KEY };
+}
+
 async function callAnthropic(env, { model, system, messages, max_tokens }) {
   const res = await fetch(ANTHROPIC_URL, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": env.ANTHROPIC_API_KEY,
       "anthropic-version": ANTHROPIC_VERSION,
+      ...authHeaders(env),
     },
     body: JSON.stringify({ model, system, messages, max_tokens }),
   });
@@ -231,8 +247,9 @@ async function handleCast(request, env) {
   const origin = request.headers.get("Origin") || "";
   const cors = corsHeaders(origin);
 
-  if (!env.ANTHROPIC_API_KEY || !env.FORGE_PASSPHRASE) {
-    return new Response(JSON.stringify({ error: "not_configured", message: "The forge backend isn't fully lit yet — the network keeper needs to set its key and passphrase." }), {
+  const hasCreds = !!(env.CLAUDE_CODE_OAUTH_TOKEN || env.ANTHROPIC_API_KEY);
+  if (!hasCreds || !env.FORGE_PASSPHRASE) {
+    return new Response(JSON.stringify({ error: "not_configured", message: "The forge backend isn't fully lit yet — the network keeper needs to set its token and passphrase." }), {
       status: 503,
       headers: { "content-type": "application/json", ...cors },
     });
@@ -315,7 +332,7 @@ export default {
     }
 
     if (url.pathname === "/health") {
-      return new Response(JSON.stringify({ ok: true, configured: !!(env.ANTHROPIC_API_KEY && env.FORGE_PASSPHRASE), gated: true, day: today() }), {
+      return new Response(JSON.stringify({ ok: true, configured: !!((env.CLAUDE_CODE_OAUTH_TOKEN || env.ANTHROPIC_API_KEY) && env.FORGE_PASSPHRASE), auth: env.CLAUDE_CODE_OAUTH_TOKEN ? "oauth" : (env.ANTHROPIC_API_KEY ? "apikey" : "none"), gated: true, day: today() }), {
         headers: { "content-type": "application/json", ...corsHeaders(origin) },
       });
     }

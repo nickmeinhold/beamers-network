@@ -244,7 +244,52 @@ function deriveCriteriaPrompt(wish, criteria) {
   return `(no explicit criteria supplied — infer 3-5 sensible acceptance criteria from the wish, e.g. clarity, visual polish, fit-for-purpose, responsiveness, and whether it actually fulfils what was asked)`;
 }
 
-async function runForge(env, { wish, criteria, base }, emit) {
+/**
+ * Trajectory analysis — forge's novel layer over the vanilla evaluator-optimizer loop.
+ * Reads the SEQUENCE of overall scores and classifies the shape, then recommends an action.
+ */
+function analyzeTrajectory(scores, shipThreshold) {
+  const EPS = 0.03;
+  const last = scores[scores.length - 1];
+  if (scores.length === 1) {
+    return {
+      pattern: "first-pass",
+      recommendation: last >= shipThreshold ? "ship" : "iterate",
+      confidence: 0.3,
+      scores,
+      reasoning: last >= shipThreshold
+        ? `First pass already clears the bar (${last.toFixed(2)} ≥ ${shipThreshold}). Ship.`
+        : `First pass at ${last.toFixed(2)}. One data point — iterate to establish a trend.`,
+    };
+  }
+  const deltas = scores.slice(1).map((s, i) => s - scores[i]);
+  const net = last - scores[0];
+  const signs = deltas.map((d) => (d > EPS ? 1 : d < -EPS ? -1 : 0));
+  const hasUp = signs.includes(1), hasDown = signs.includes(-1);
+  const lastStepFlat = Math.abs(deltas[deltas.length - 1]) < EPS;
+
+  let pattern, recommendation, reasoning;
+  if (hasUp && hasDown) {
+    pattern = "oscillation";
+    recommendation = "pivot";
+    reasoning = `Scores swing up and down (${scores.map((s) => s.toFixed(2)).join(" → ")}). The criteria likely conflict — pivot the approach rather than iterate.`;
+  } else if (net < -EPS) {
+    pattern = "regression";
+    recommendation = "pivot";
+    reasoning = `Scores are sliding backward (${scores.map((s) => s.toFixed(2)).join(" → ")}). Each round is making it worse — pivot.`;
+  } else if (lastStepFlat || net < EPS) {
+    pattern = "plateau";
+    recommendation = last >= shipThreshold ? "ship" : "escalate";
+    reasoning = `Scores have flattened (${scores.map((s) => s.toFixed(2)).join(" → ")}). ${last >= shipThreshold ? "It clears the bar — ship the best." : "Stuck below the bar — escalate; more rounds won't help."}`;
+  } else {
+    pattern = "improving";
+    recommendation = last >= shipThreshold ? "ship" : "iterate";
+    reasoning = `Climbing steadily (${scores.map((s) => s.toFixed(2)).join(" → ")}). ${last >= shipThreshold ? "Now clears the bar — ship." : "Working — keep iterating."}`;
+  }
+  return { pattern, recommendation, confidence: Math.min(0.9, 0.4 + 0.15 * scores.length), scores, reasoning };
+}
+
+async function runForge(env, { wish, criteria, base, minIterations }, emit) {
   const criteriaText = deriveCriteriaPrompt(wish, criteria);
   const iterations = [];
   let lastEvalNote = "";
@@ -295,9 +340,14 @@ async function runForge(env, { wish, criteria, base }, emit) {
 
     const record = { iteration: i, html, scores: evalObj.scores || [], overall, verdict: evalObj.verdict, topFix: evalObj.topFix || "", model: builder.model };
     iterations.push(record);
-    await emit("iteration", record);
 
-    if (evalObj.verdict === "ship" || overall >= CONFIG.SHIP_THRESHOLD) break;
+    // surface the running trajectory after each scored iteration
+    const traj = analyzeTrajectory(iterations.map((it) => it.overall), CONFIG.SHIP_THRESHOLD);
+    await emit("iteration", { ...record, trajectory: traj });
+
+    // only allow an early ship once the requested minimum rounds are done
+    const minRounds = Math.max(1, Math.min(minIterations || 1, CONFIG.MAX_ITERATIONS));
+    if (i >= minRounds && (evalObj.verdict === "ship" || overall >= CONFIG.SHIP_THRESHOLD)) break;
   }
 
   // best iteration by overall
@@ -306,8 +356,9 @@ async function runForge(env, { wish, criteria, base }, emit) {
     if (it.overall > iterations[bestIndex].overall) bestIndex = idx;
   });
   const shipped = iterations.length > 0 && iterations[bestIndex].overall >= CONFIG.SHIP_THRESHOLD;
+  const trajectory = analyzeTrajectory(iterations.map((it) => it.overall), CONFIG.SHIP_THRESHOLD);
 
-  return { iterations, bestIndex, shipped, tokensUsed };
+  return { iterations, bestIndex, shipped, tokensUsed, trajectory };
 }
 
 async function handleCast(request, env) {
@@ -340,6 +391,7 @@ async function handleCast(request, env) {
   const wish = (payload.wish || "").toString().trim();
   const criteria = Array.isArray(payload.criteria) ? payload.criteria.slice(0, 12).map((c) => c.toString().slice(0, 200)) : null;
   const base = payload.base ? payload.base.toString().slice(0, 24000) : "";
+  const minIterations = Math.max(1, Math.min(parseInt(payload.minIterations, 10) || 1, CONFIG.MAX_ITERATIONS));
   if (wish.length < 3 || wish.length > 1000) {
     return new Response(JSON.stringify({ error: "bad_request", message: "wish must be 3-1000 chars" }), { status: 400, headers: { "content-type": "application/json", ...cors } });
   }
@@ -362,8 +414,8 @@ async function handleCast(request, env) {
 
   (async () => {
     try {
-      const result = await runForge(env, { wish, criteria, base }, emit);
-      await emit("done", { shipped: result.shipped, bestIndex: result.bestIndex, iterations: result.iterations.length, tokensUsed: result.tokensUsed });
+      const result = await runForge(env, { wish, criteria, base, minIterations }, emit);
+      await emit("done", { shipped: result.shipped, bestIndex: result.bestIndex, iterations: result.iterations.length, tokensUsed: result.tokensUsed, trajectory: result.trajectory });
     } catch (err) {
       if (err instanceof SpendCapError) {
         await emit("error", { message: "The network's magic is spent for now — the keeper's daily wish-budget is used up. Try again later.", code: "well_dry" });

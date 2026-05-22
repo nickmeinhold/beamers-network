@@ -248,6 +248,48 @@
   }
   .iter-actions button:hover { background: var(--pass); }
 
+  /* trajectory panel — forge's novel layer made visible */
+  .trajectory {
+    margin-top: 5vh;
+    border: 2px solid var(--forest);
+    border-radius: 10px;
+    background: rgba(45, 74, 43, 0.06);
+    padding: 1.4rem 1.6rem;
+    box-shadow: 3px 3px 0 rgba(60,30,0,0.1);
+  }
+  .trajectory h3 {
+    font-family: "Cinzel Decorative", serif; font-weight: 900;
+    color: var(--forest); margin: 0 0 1rem; font-size: 1.2rem;
+  }
+  .traj-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .traj-spark { display: flex; align-items: flex-end; gap: 6px; height: 64px; }
+  .traj-bar {
+    width: 34px; background: linear-gradient(180deg, var(--gold), var(--pass));
+    border-radius: 3px 3px 0 0; position: relative; min-height: 4px;
+    transition: height 0.5s ease;
+  }
+  .traj-bar span {
+    position: absolute; top: -1.3rem; left: 50%; transform: translateX(-50%);
+    font-family: "VT323", monospace; font-size: 0.95rem; color: var(--ink);
+  }
+  .traj-bar small {
+    position: absolute; bottom: -1.3rem; left: 50%; transform: translateX(-50%);
+    font-family: "VT323", monospace; font-size: 0.8rem; color: var(--gold); white-space: nowrap;
+  }
+  .traj-badge {
+    font-family: "VT323", monospace; font-size: 1.15rem; letter-spacing: 0.1em;
+    padding: 0.3rem 1rem; border-radius: 6px; text-transform: uppercase;
+  }
+  .traj-badge.improving { background: var(--pass); color: var(--parchment); }
+  .traj-badge.plateau   { background: var(--gold); color: var(--parchment); }
+  .traj-badge.oscillation, .traj-badge.regression { background: var(--crimson); color: var(--parchment); }
+  .traj-badge.first-pass { background: var(--forest); color: var(--parchment); }
+  .traj-rec {
+    font-family: "VT323", monospace; font-size: 1.1rem; color: var(--crimson);
+    text-transform: uppercase; letter-spacing: 0.12em;
+  }
+  .traj-reasoning { font-style: italic; color: #3a2a18; margin: 0; }
+
   footer { text-align: center; margin-top: 9vh; font-family: "VT323", monospace; color: var(--gold); letter-spacing: 0.2em; font-size: 0.95rem; }
   footer a { color: var(--crimson); }
 </style>
@@ -290,6 +332,14 @@
     <input type="text" id="criteria" placeholder="e.g. must still print clean at A5; keep it readable for over-50s">
     <div class="hint">Separate multiple criteria with semicolons. Brand canon (four beats, dual register, B3AM3RS wordmark, named loot, Lavanter footer) is always scored.</div>
 
+    <label class="field-label" for="rounds" style="margin-top:0.6rem;">Refine rounds</label>
+    <select id="rounds" style="width:100%;font-family:'Crimson Pro',serif;font-size:1.05rem;padding:0.6rem 1rem;border:1.5px solid var(--gold);border-radius:6px;background:#fffdf6;color:var(--ink);">
+      <option value="1">Until shipped (stop early if worthy)</option>
+      <option value="2">Force 2 rounds — see the trajectory</option>
+      <option value="3">Force 3 rounds — full trajectory</option>
+    </select>
+    <div class="hint">Forcing rounds lets the trajectory analyzer detect improving / plateau / oscillation across iterations.</div>
+
     <button class="cast-btn" id="cast">✦ Forge the riff ✦</button>
     <div class="status" id="status"></div>
     <div class="notconfig" id="notconfig">
@@ -299,6 +349,8 @@
   </section>
 
   <section class="iterations" id="iterations"></section>
+
+  <section id="trajectory" class="trajectory" style="display:none;"></section>
 
   <footer>
     — forge: build → evaluate → iterate · <a href="../">back to the network</a> —
@@ -448,6 +500,27 @@ function renderIteration(rec) {
   };
 }
 
+function renderTrajectory(traj) {
+  if (!traj) return;
+  const panel = $("trajectory");
+  panel.style.display = "block";
+  const scores = traj.scores || [];
+  const bars = scores.map((s, i) => {
+    const h = Math.max(4, Math.round((s || 0) * 60));
+    return `<div class="traj-bar" style="height:${h}px"><span>${s.toFixed(2)}</span><small>iter ${i + 1}</small></div>`;
+  }).join("");
+  panel.innerHTML = `
+    <h3>⚖ Trajectory analysis</h3>
+    <div class="traj-row">
+      <div class="traj-spark">${bars}</div>
+      <span class="traj-badge ${traj.pattern}">${traj.pattern}</span>
+      <span class="traj-rec">→ ${traj.recommendation}</span>
+    </div>
+    <p class="traj-reasoning">${escapeHtml(traj.reasoning || "")}</p>
+    <p style="font-family:'VT323',monospace;font-size:0.85rem;color:var(--gold);margin:0.5rem 0 0;">confidence ${(traj.confidence||0).toFixed(2)} · this is the layer the vanilla evaluator-optimizer loop doesn't have</p>`;
+  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
@@ -461,9 +534,12 @@ async function cast() {
   const passphrase = $("passphrase").value.trim();
   if (passphrase) localStorage.setItem("forgeKey", passphrase);
 
+  const minIterations = parseInt($("rounds").value, 10) || 1;
+
   // reset
   Object.keys(timers).forEach(stopTimer);
   iterationsEl.innerHTML = ""; iterEls = {}; scrollBuf = {};
+  $("trajectory").style.display = "none";
   $("cast").disabled = true;
   setStatus('<span class="spark">✦</span> opening the forge…');
 
@@ -471,7 +547,7 @@ async function cast() {
     const res = await fetch(WORKER + "/cast", {
       method: "POST",
       headers: { "content-type": "application/json", "X-Forge-Key": passphrase },
-      body: JSON.stringify({ wish, criteria, base: flyerBase }),
+      body: JSON.stringify({ wish, criteria, base: flyerBase, minIterations }),
     });
 
     if (res.status === 401) {
@@ -553,6 +629,7 @@ function handleEvent(block) {
   } else if (event === "done") {
     const best = iterEls[payload.bestIndex + 1];
     if (best) best.classList.add("best");
+    if (payload.trajectory) renderTrajectory(payload.trajectory);
     setStatus(payload.shipped
       ? `<span class="spark">✦</span> wish granted — best iteration ${payload.bestIndex + 1} shipped. ✦`
       : `the forge tried ${payload.iterations} iterations; best is marked. Refine your wish and cast again.`);

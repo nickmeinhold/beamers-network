@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Beamers — You Have Three Wishes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Caveat:wght@500;700&family=VT323&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0f12;
+    --bg-soft: #12161b;
+    --panel: #161b22;
+    --line: #232c36;
+    --term-green: #3fd86b;
+    --term-dim: #2a8f49;
+    --amber: #d4a634;
+    --gold: #b8860b;
+    --crimson: #e5484d;
+    --fg: #c9d4cf;
+    --fg-dim: #7d8a86;
+    --comment: #5a6b66;
+  }
+
+  @page { size: A5; margin: 0; }
+
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+    color: var(--fg);
+    line-height: 1.45;
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at top, #14202a 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg) 0%, #090b0d 100%);
+    background-attachment: fixed;
+  }
+
+  .scroll {
+    max-width: 148mm;
+    margin: 0 auto;
+    padding: 12mm 12mm 11mm;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  /* faint scanline texture — CRT, not vellum */
+  .scroll::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(63, 216, 107, 0.035) 0px,
+      rgba(63, 216, 107, 0.035) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+  }
+
+  /* window chrome dots, top-left */
+  .chrome {
+    display: flex;
+    gap: 3.5mm;
+    margin-bottom: 6mm;
+    align-items: center;
+  }
+  .chrome .dot { width: 2.6mm; height: 2.6mm; border-radius: 50%; }
+  .chrome .r { background: #e5484d; }
+  .chrome .y { background: #d4a634; }
+  .chrome .g { background: #3fd86b; }
+  .chrome .path {
+    font-size: 8.5pt;
+    color: var(--comment);
+    letter-spacing: 0.04em;
+    margin-left: 2mm;
+  }
+
+  /* ─── Beat 1: the spell ───────────────────────────── */
+
+  .spell { margin: 0 0 7mm; }
+
+  .wish-stamp {
+    font-family: "VT323", monospace;
+    font-size: 11pt;
+    letter-spacing: 0.28em;
+    color: var(--term-dim);
+    text-transform: uppercase;
+    margin-bottom: 3mm;
+  }
+  .wish-stamp .hash { color: var(--comment); }
+
+  h1 {
+    font-family: "VT323", monospace;
+    font-weight: 400;
+    font-size: 40pt;
+    line-height: 0.95;
+    margin: 0;
+    letter-spacing: 0.06em;
+    color: var(--term-green);
+    text-shadow: 0 0 9px rgba(63, 216, 107, 0.45);
+  }
+  h1 .three { color: var(--amber); text-shadow: 0 0 9px rgba(212,166,52,0.5); }
+  h1 .cursor {
+    display: inline-block;
+    width: 0.55em;
+    background: var(--term-green);
+    margin-left: 2px;
+    animation: blink 1.1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* the mythic register, woven into the terminal — handwritten incantation */
+  .incantation {
+    font-family: "Caveat", cursive;
+    font-size: 26pt;
+    color: var(--amber);
+    margin: 3.5mm 0 0;
+    line-height: 1.1;
+    transform: rotate(-1.2deg);
+    display: inline-block;
+  }
+  .incantation .sparkle { color: var(--term-green); }
+
+  .invocation {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12pt;
+    color: var(--fg);
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--term-green);
+    border-radius: 1mm;
+    padding: 2.5mm 4mm;
+    margin: 4.5mm 0 0;
+    letter-spacing: 0.01em;
+  }
+  .invocation .prompt { color: var(--term-green); font-weight: 700; margin-right: 2mm; }
+  .invocation .flag { color: var(--amber); }
+  .invocation .val { color: var(--crimson); }
+
+  .whisper {
+    font-size: 10.5pt;
+    color: var(--fg-dim);
+    margin-top: 3.5mm;
+  }
+  .whisper::before { content: "# "; color: var(--comment); }
+  .whisper .ai { color: var(--term-green); font-weight: 700; }
+
+  /* ─── Beat 2: three named quests ──────────────────── */
+
+  .quests {
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+    margin: 6mm 0 7mm;
+  }
+
+  .quest {
+    border: 1px solid var(--line);
+    border-radius: 1.5mm;
+    padding: 3mm 4.5mm 3.5mm;
+    background: var(--panel);
+    position: relative;
+  }
+  .quest::before {
+    content: "▸";
+    position: absolute;
+    left: 1.5mm;
+    top: 3mm;
+    color: var(--term-dim);
+    font-size: 9pt;
+  }
+
+  .quest-stamp {
+    position: absolute;
+    top: -2.6mm;
+    right: 4mm;
+    background: var(--bg);
+    color: var(--term-dim);
+    font-family: "VT323", monospace;
+    font-size: 9.5pt;
+    padding: 0.4mm 2.5mm;
+    border: 1px solid var(--line);
+    border-radius: 1mm;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  /* loot names carry the Cinzel mythic serif — the dual-font fusion */
+  .quest-title {
+    font-family: "Cinzel", serif;
+    font-size: 13pt;
+    font-weight: 900;
+    margin: 0 0 1.5mm;
+    padding-left: 4mm;
+    color: var(--fg);
+    letter-spacing: 0.02em;
+  }
+  .quest-title .glyph { margin-right: 4px; }
+
+  .quest-example {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9.5pt;
+    color: var(--fg-dim);
+    margin: 0;
+    padding-left: 4mm;
+    line-height: 1.4;
+  }
+  .quest-example::before { content: "$ wish: "; color: var(--term-dim); }
+
+  /* ─── Beat 3: the turn ────────────────────────────── */
+
+  .turn {
+    font-size: 11pt;
+    line-height: 1.55;
+    margin: 7mm 0;
+    color: var(--fg);
+    background: var(--bg-soft);
+    border: 1px dashed var(--line);
+    border-radius: 1.5mm;
+    padding: 3.5mm 4.5mm;
+  }
+  .turn::before {
+    content: "// after the third invocation";
+    display: block;
+    color: var(--comment);
+    font-size: 8.5pt;
+    margin-bottom: 1.5mm;
+  }
+  .turn strong { color: var(--term-green); font-weight: 700; }
+  .turn .dash { color: var(--amber); }
+
+  /* ─── Beat 4: footer + address (Lavanter kept) ────── */
+
+  .closing {
+    margin-top: 6mm;
+    padding-top: 5mm;
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+
+  /* the lore returns in Cinzel — mythic serif against the monospace */
+  .lore {
+    font-family: "Cinzel", serif;
+    font-size: 10pt;
+    font-weight: 500;
+    color: var(--fg-dim);
+    line-height: 1.5;
+    margin: 0 0 5mm;
+    letter-spacing: 0.01em;
+  }
+  .lore .cafe { color: var(--amber); font-weight: 700; }
+  .lore .pay  {
+    font-family: "Caveat", cursive;
+    font-size: 14pt;
+    display: block;
+    margin-top: 2.5mm;
+    color: var(--term-green);
+  }
+
+  .address {
+    font-family: "VT323", monospace;
+    font-size: 20pt;
+    color: var(--fg);
+    letter-spacing: 0.05em;
+  }
+  .address::before { content: "$ mail "; color: var(--term-dim); font-size: 13pt; }
+  .address a { color: var(--term-green); text-decoration: none; border-bottom: 1px dotted var(--term-dim); }
+  .address .at { color: var(--amber); }
+
+  .canon {
+    font-family: "VT323", monospace;
+    font-size: 9pt;
+    letter-spacing: 0.22em;
+    color: var(--comment);
+    margin-top: 4mm;
+    text-transform: uppercase;
+  }
+
+  .leet-stamp {
+    position: absolute;
+    bottom: 9mm;
+    left: 6mm;
+    font-family: "VT323", monospace;
+    font-size: 8pt;
+    color: var(--term-dim);
+    transform: rotate(-90deg);
+    transform-origin: left bottom;
+    letter-spacing: 0.3em;
+    opacity: 0.7;
+  }
+
+  @media print {
+    body { background: #0c0f12 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .scroll { padding: 11mm; }
+    h1, h1 .three, .address a, .lore .pay { text-shadow: none; }
+    h1 .cursor { animation: none; }
+  }
+
+  @media (max-width: 600px) {
+    .scroll { padding: 9mm 6mm; }
+    h1 { font-size: 30pt; }
+    .incantation { font-size: 22pt; }
+    .address { font-size: 16pt; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scroll">
+
+  <!-- terminal window chrome -->
+  <div class="chrome">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span class="path">~/beamers — zsh — wish #15</span>
+  </div>
+
+  <!-- Beat 1: the spell -->
+  <div class="spell">
+    <div class="wish-stamp"><span class="hash">#</span> wish &#8470; 15 of the network</div>
+    <h1>B<span class="three">3</span>AM<span class="three">3</span>RS<span class="cursor">&nbsp;</span></h1>
+    <div class="incantation">
+      <span class="sparkle">✦</span> you have three wishes. <span class="sparkle">✦</span>
+    </div>
+    <div class="invocation">
+      <span class="prompt">$</span> beam <span class="flag">--wishes</span> <span class="val">3</span> <span class="flag">--price</span> <span class="val">0</span>
+    </div>
+    <div class="whisper">
+      A Beamer will grant them — with <span class="ai">AI</span>, for free, three times over.
+    </div>
+  </div>
+
+  <!-- Beat 2: three named quests -->
+  <div class="quests">
+
+    <div class="quest">
+      <div class="quest-stamp">tutorial</div>
+      <div class="quest-title"><span class="glyph">🌱</span>The Dawn Heron</div>
+      <p class="quest-example">A daily summary of yesterday's bookings, sent to my phone at seven.</p>
+    </div>
+
+    <div class="quest">
+      <div class="quest-stamp">side-quest</div>
+      <div class="quest-title"><span class="glyph">📜</span>The Inbox Whisperer</div>
+      <p class="quest-example">Auto-reply to the question every customer asks me three times a day.</p>
+    </div>
+
+    <div class="quest">
+      <div class="quest-stamp">boss fight</div>
+      <div class="quest-title"><span class="glyph">🐉</span>The Booking Golem</div>
+      <p class="quest-example">A booking, reminder and follow-up system that runs itself, forever.</p>
+    </div>
+
+  </div>
+
+  <!-- Beat 3: the turn -->
+  <p class="turn">
+    After the third wish, you may <strong>keep your Beamer</strong>.<br>
+    The price is spoken then <span class="dash">—</span> never before.
+  </p>
+
+  <!-- Beat 4: footer + address -->
+  <div class="closing">
+    <p class="lore">
+      This flyer is itself a granted wish —<br>
+      to the family at <span class="cafe">Lavanter Café</span>,<br>
+      who gave us one in return.
+      <span class="pay">Wishes travel. Pay yours forward.</span>
+    </p>
+
+    <div class="address">
+      <a href="mailto:wish@beamers.network">wish<span class="at">@</span>beamers.network</a>
+    </div>
+
+    <div class="canon">— canon · the first wish-giver · est. 2026 —</div>
+  </div>
+
+  <div class="leet-stamp">beam() · BEAMER</div>
+
+</div>
+
+</body>
+</html>
